@@ -1,0 +1,91 @@
+apiVersion: vesper/v1
+kind: AgentFleet
+
+name: hotel-pipeline
+
+agents:
+  - name: intake
+    model: claude-haiku-4-5-20251001
+    entryPoint: src/agent.py       
+
+    tools:
+      - web_search
+      - read_file
+
+    memory:
+      scope: session
+      retentionDays: 1
+
+    budget:
+      maxCostPerRun: 0.05
+      alertAt: 0.04
+
+    guardrails: hotel-policy
+
+    eval:
+      dataset: eval/intake-agent.json
+      passThreshold: 0.85
+      ciGate: true
+  
+  - name: booking
+    model: claude-haiku-4-5-20251001
+    entryPoint: src/agent.py      
+
+    tools:
+      - web_search
+      - read_file
+
+    memory:
+      scope: session
+      retentionDays: 1
+
+    budget:
+      maxCostPerRun: 0.05
+      alertAt: 0.04
+
+    guardrails: hotel-policy
+
+    eval:
+      dataset: eval/booking-agent.json
+      passThreshold: 0.85
+      ciGate: true
+
+  - name: confirmation
+    model: claude-haiku-4-5-20251001
+    entryPoint: src/agent.py      
+
+    tools:
+      - web_search
+      - read_file
+
+    memory:
+      scope: session
+      retentionDays: 1
+
+    budget:
+      maxCostPerRun: 0.05
+      alertAt: 0.04
+
+    guardrails: hotel-policy
+
+    eval:
+      dataset: eval/confirmation-agent.json
+      passThreshold: 0.85
+      ciGate: true
+
+
+taskGraph:
+  parse_request:
+    agent: intake
+    dependsOn: []
+
+  make_booking:
+    agent: booking
+    dependsOn: [parse_request]
+
+  send_confirmation:
+    agent: confirmation
+    dependsOn: [make_booking]
+
+budget:
+  maxCostPerFleetRun: 0.15
