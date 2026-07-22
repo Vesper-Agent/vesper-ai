@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Tuple
 from vesper.models import VesperManifest
 
 class VesperDatabase(ABC):
@@ -13,5 +13,14 @@ class VesperDatabase(ABC):
     @abstractmethod
     def save_agent_spec(self, manifest: VesperManifest) -> None:
         """Saves a manifest in the database."""  
+        pass
     
-    
+    @abstractmethod
+    def get_resources(self) -> List[Tuple[str, str, int]]:
+        """Returns all active resources (agents and fleets) from the database."""
+        pass
+
+    @abstractmethod
+    def get_history(self, name: str) -> List[Tuple[int, str]]:
+        """Returns history of a resource (agent or agent-fleet)"""
+        pass

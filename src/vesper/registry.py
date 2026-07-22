@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
 from pydantic import ValidationError
+from typing import Tuple, List
 from vesper.models import manifest_adapter, VesperManifest
 from vesper.exceptions import InvalidAgentSpecError
 from vesper.storage import VesperDatabase
@@ -31,10 +32,19 @@ class AgentRegistry:
                     
         return manifest
 
-    def apply_manifest(self, file_path: str) -> tuple[VesperManifest, str, int]:
+    def apply_manifest(self, file_path: str) -> Tuple[VesperManifest, str, int]:
         """Validates the YAML and saves it to the database."""
 
         manifest = self.validate_manifest(file_path)
         new_id, new_version = self.db.save_agent_spec(manifest)
         
         return manifest, new_id, new_version
+    
+    def get_all_resources(self) -> List[Tuple[str, str, int]]:
+        """Returns all active resources (agents and fleets) from the database."""
+        
+        return self.db.get_resources()        
+    
+    def get_history(self, name: str) -> List[Tuple[int, str]]:
+        """Returns history of a resource."""
+        return self.db.get_history(name)

@@ -1,8 +1,8 @@
 import sqlite3, uuid, os
-from typing import Tuple
+from typing import Tuple, List
 from vesper.models import VesperManifest
 from vesper.storage import VesperDatabase
-from vesper.exceptions import NoChangeDetectedError
+from vesper.exceptions import NoChangeDetectedError, ResourceNameNotFoundError
 
 class SQLiteVesperDatabase(VesperDatabase):
     def __init__(self, db_path: str = "./vesper.db"):
@@ -100,3 +100,38 @@ class SQLiteVesperDatabase(VesperDatabase):
                 )
                 
                 return new_id, new_version
+            
+    def get_resources(self) -> List[Tuple[str, str, int]]:
+        """Returns all active resources (agents and fleets) from the database."""
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT resources.name, resources.kind, manifests.version 
+                FROM resources
+                INNER JOIN manifests ON resources.active_version_id = manifests.id
+            """)
+            
+            rows = cursor.fetchall()
+            
+            return [(row['name'], row['kind'], row['version']) for row in rows]
+        
+    def get_history(self, name: str) -> List[Tuple[int, str]]:
+        """Returns history of a resource (agent or agent-fleet)"""
+            
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT version, id FROM manifests 
+                WHERE resource_name = ?
+                ORDER BY version DESC
+            """, (name, ))
+            
+            rows = cursor.fetchall()
+            
+            if rows:
+                return [(row['version'], row['id']) for row in rows]
+            else:
+                raise ResourceNameNotFoundError(f"Resource '{name}' not found.")

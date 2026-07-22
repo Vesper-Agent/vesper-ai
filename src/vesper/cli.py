@@ -7,12 +7,13 @@ import importlib.metadata
 from typing import Optional
 
 import typer
-from rich import print
+from rich import print, box
 from rich.console import Console
+from rich.table import Table
 
 from vesper.registry import AgentRegistry
 from vesper.sqlite_storage import SQLiteVesperDatabase
-from vesper.exceptions import VesperError, NoChangeDetectedError
+from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNotFoundError
 
 app = typer.Typer(
     rich_markup_mode="rich",
@@ -233,6 +234,64 @@ def apply(
         print(f"[bold red]{e}[/bold red]")
         raise typer.Exit(code=1)
 
+@app.command(name="list")
+@app.command(name="ls", hidden=True)
+def list_resources():
+    """Lists all active resources (agents and fleets)."""
+    registry = get_registry()
+    resources = registry.get_all_resources()
+    
+    if not resources:
+        print("[dim]No resources deployed yet. Run 'vesper apply -f <spec.yaml>' to get started.[/dim]")
+        return
 
+    table = Table(
+        box=box.MINIMAL, 
+        header_style="bold white",
+        pad_edge=False
+    )
+    
+    table.add_column("Name", style="white")
+    table.add_column("Kind", style="dim")
+    table.add_column("Version")
+    table.add_column("Status")
+    
+    for name, kind, version in resources:
+        table.add_row(
+            name, 
+            kind, 
+            f"v{version}", 
+            "[bold green]● Active[/bold green]"
+        )
+        
+    console.print(table)
+ 
+@app.command(name="history")        
+def show_history(name: str):
+    """Displays history of a resource (agent or agent-fleet)"""
+    registry = get_registry()
+    
+    try:
+        history = registry.get_history(name)
+        
+        print(f"History: [bold white]{name}[/bold white]")
+        
+        table = Table(
+                box=box.MINIMAL, 
+                header_style="bold white",
+                pad_edge=False
+            )
+        
+        table.add_column("Version", style="white")
+        table.add_column("Manifest ID", style="dim")
+        
+        for version, id in history:
+            table.add_row(f"v{version}", id)
+        
+        console.print(table)
+            
+    except ResourceNameNotFoundError as e:
+        print(f"[bold red]{e}[/bold red]")
+    
 if __name__ == "__main__":
     app()

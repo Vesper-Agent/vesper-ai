@@ -13,3 +13,6 @@ class InvalidModelNameError(VesperError):
 class NoChangeDetectedError(VesperError):
     """Raised when an applied manifest matches the active state exactly."""
     pass
+
+class ResourceNameNotFoundError(VesperError):
+    """Raised when a resource name is not found."""
