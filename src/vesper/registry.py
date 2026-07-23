@@ -50,5 +50,9 @@ class AgentRegistry:
         return self.db.get_history(name)
     
     def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
-            """Returns configuration of the resource."""
-            return self.db.get_resource_config(name, version)
+        """Returns configuration of the resource."""
+        return self.db.get_resource_config(name, version)
+        
+    def delete_resource(self, name: str) -> None:
+        """Deletes the resource from the database."""
+        return self.db.delete_resource(name)

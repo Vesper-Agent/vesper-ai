@@ -137,30 +137,40 @@ class SQLiteVesperDatabase(VesperDatabase):
                 raise ResourceNameNotFoundError(f"Resource '{name}' not found.")
             
     def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
-            """Returns the parsed configuration of the resource."""
+        """Returns the parsed configuration of the resource."""
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
             
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
+            if not version:
+                cursor.execute("SELECT active_version_id FROM resources WHERE name = ?", (name, ))
+                resource_row = cursor.fetchone()
                 
-                if not version:
-                    cursor.execute("SELECT active_version_id FROM resources WHERE name = ?", (name, ))
-                    resource_row = cursor.fetchone()
-                    
-                    if not resource_row:
-                        raise ResourceNameNotFoundError(f"Resource '{name}' not found.")
-                    
-                    active_id = resource_row['active_version_id']
-                    cursor.execute("SELECT content_json FROM manifests WHERE id = ?", (active_id, ))
-                    manifest_row = cursor.fetchone()
-                    
-                else:
-                    cursor.execute(
-                        "SELECT content_json FROM manifests WHERE resource_name = ? AND version = ?", 
-                        (name, version)
-                    )
-                    manifest_row = cursor.fetchone()
-                    
-                    if not manifest_row:
-                        raise ResourceVersionNotFoundError(f"Version {version} of '{name}' not found.")
+                if not resource_row:
+                    raise ResourceNameNotFoundError(f"Resource '{name}' not found.")
                 
-            return manifest_adapter.validate_json(manifest_row['content_json'])
+                active_id = resource_row['active_version_id']
+                cursor.execute("SELECT content_json FROM manifests WHERE id = ?", (active_id, ))
+                manifest_row = cursor.fetchone()
+                
+            else:
+                cursor.execute(
+                    "SELECT content_json FROM manifests WHERE resource_name = ? AND version = ?", 
+                    (name, version)
+                )
+                manifest_row = cursor.fetchone()
+                
+                if not manifest_row:
+                    raise ResourceVersionNotFoundError(f"Version {version} of '{name}' not found.")
+            
+        return manifest_adapter.validate_json(manifest_row['content_json'])
+        
+    def delete_resource(self, name: str) -> None:
+        """Deletes a resource from the database."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM resources WHERE name = ?", (name, ))
+            
+            if not cursor.rowcount:
+                raise ResourceNameNotFoundError(f"Resource '{name}' not found.")

@@ -29,3 +29,8 @@ class VesperDatabase(ABC):
     def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
         """Returns YAML configuration of the resource."""
         pass
+    
+    @abstractmethod
+    def delete_resource(self, name: str) -> None:
+        """Deletes a resource from the database."""
+        pass

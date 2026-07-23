@@ -211,7 +211,7 @@ def validate(
         print(f"[green]✓ Successfully validated {manifest.kind}: {manifest.name}[/green]")
         
     except (VesperError, FileNotFoundError) as e:
-        print(f"[bold red]{e}[/bold red]")
+        print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1)
 
 
@@ -232,7 +232,7 @@ def apply(
     except NoChangeDetectedError as e:
         print(f"[dim]⚠ {e}[/dim]")
     except (VesperError, FileNotFoundError) as e:
-        print(f"[bold red]{e}[/bold red]")
+        print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1)
 
 @app.command(name="list")
@@ -292,7 +292,7 @@ def show_history(name: str):
         console.print(table)
             
     except ResourceNameNotFoundError as e:
-        print(f"[bold red]{e}[/bold red]")
+        print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1)
         
 @app.command(name="show")
@@ -325,8 +325,59 @@ def show_config(
         print()
         
     except (ResourceNameNotFoundError, ResourceVersionNotFoundError) as e:
-        print(f"[bold red]{e}[/bold red]")
+        print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(code=1)
+    
+@app.command(name="delete")
+def delete_resource(
+    name: Annotated[
+        str | None, 
+        typer.Argument(help="Name of the resource to delete.")
+    ] = None,
+    file: Annotated[
+        str | None,
+        typer.Option("--file", "-f", help="Specify the file path.")
+    ] = None,
+    confirmed: Annotated[
+        bool,
+        typer.Option("--yes", "-y", help="Skip confirmation prompt.")
+    ] = False
+):
+    """Deletes a resource and its history from the database."""
+    registry = get_registry()
+    
+    if not name and not file:
+        print("[dim]Error: Either a resource name or a --file flag must be provided.[/dim]")
+        raise typer.Exit(code=1)
+    
+    names_to_delete = []
+    
+    if name:
+        names_to_delete.append(name)
+    
+    if file:
+        try:
+            manifest = registry.validate_manifest(file)
+            if manifest.name not in names_to_delete:
+                names_to_delete.append(manifest.name)
+        except (VesperError, FileNotFoundError) as e:
+            print(f"[bold red]{e}[/bold red]")
+            raise typer.Exit(code=1)
+            
+    targets = ", ".join(names_to_delete)
+    
+    if not confirmed:
+        confirm = typer.confirm(f"Are you sure you want to permanently delete '{targets}' and all history?")
+        if not confirm:
+            raise typer.Abort()
+        
+    for target in names_to_delete:
+        try:
+            registry.delete_resource(target)
+            print(f"[green]✓ Successfully deleted '{target}' and its history.[/green]")
+        except ResourceNameNotFoundError as e:
+            print(f"[bold red]Error: {e}[/bold red]")
+            raise typer.Exit(code=1)
     
 if __name__ == "__main__":
     app()
