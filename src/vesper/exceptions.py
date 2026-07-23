@@ -16,3 +16,7 @@ class NoChangeDetectedError(VesperError):
 
 class ResourceNameNotFoundError(VesperError):
     """Raised when a resource name is not found."""
+    pass
+
+class ResourceVersionNotFoundError(VesperError):
+    """Raised when a resource version is not found."""

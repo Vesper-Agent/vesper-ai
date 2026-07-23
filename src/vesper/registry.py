@@ -48,3 +48,7 @@ class AgentRegistry:
     def get_history(self, name: str) -> List[Tuple[int, str]]:
         """Returns history of a resource."""
         return self.db.get_history(name)
+    
+    def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
+            """Returns configuration of the resource."""
+            return self.db.get_resource_config(name, version)

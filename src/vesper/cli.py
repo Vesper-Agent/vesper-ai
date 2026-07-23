@@ -4,16 +4,17 @@ import time
 import json
 import shutil
 import importlib.metadata
-from typing import Optional
+from typing import Optional, Annotated
 
 import typer
 from rich import print, box
 from rich.console import Console
 from rich.table import Table
+from rich.syntax import Syntax
 
 from vesper.registry import AgentRegistry
 from vesper.sqlite_storage import SQLiteVesperDatabase
-from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNotFoundError
+from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNotFoundError, ResourceVersionNotFoundError
 
 app = typer.Typer(
     rich_markup_mode="rich",
@@ -292,6 +293,40 @@ def show_history(name: str):
             
     except ResourceNameNotFoundError as e:
         print(f"[bold red]{e}[/bold red]")
+        raise typer.Exit(code=1)
+        
+@app.command(name="show")
+def show_config(
+    name: str,
+    version: Annotated[
+        int | None,
+        typer.Option("--version", "-v", help="Specify the version of the resource.")
+    ] = None
+):
+    """Displays the actual configuration of the resource."""
+    registry = get_registry()
+    
+    try:
+        manifest = registry.get_resource_config(name, version)
+        
+        display_version = f" (v{version})" if version else " (Active)"
+        print(f"\n[bold white]Configuration: {name}{display_version}[/bold white]")
+        
+        json_str = manifest.model_dump_json(indent=2)
+        
+        syntax = Syntax(
+            json_str, 
+            "json", 
+            theme="ansi_dark", 
+            background_color="default",
+            word_wrap=True
+        )
+        console.print(syntax)
+        print()
+        
+    except (ResourceNameNotFoundError, ResourceVersionNotFoundError) as e:
+        print(f"[bold red]{e}[/bold red]")
+        raise typer.Exit(code=1)
     
 if __name__ == "__main__":
     app()

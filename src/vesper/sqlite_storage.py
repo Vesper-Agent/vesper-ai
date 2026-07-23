@@ -1,8 +1,8 @@
 import sqlite3, uuid, os
 from typing import Tuple, List
-from vesper.models import VesperManifest
+from vesper.models import VesperManifest, manifest_adapter
 from vesper.storage import VesperDatabase
-from vesper.exceptions import NoChangeDetectedError, ResourceNameNotFoundError
+from vesper.exceptions import NoChangeDetectedError, ResourceNameNotFoundError, ResourceVersionNotFoundError
 
 class SQLiteVesperDatabase(VesperDatabase):
     def __init__(self, db_path: str = "./vesper.db"):
@@ -135,3 +135,32 @@ class SQLiteVesperDatabase(VesperDatabase):
                 return [(row['version'], row['id']) for row in rows]
             else:
                 raise ResourceNameNotFoundError(f"Resource '{name}' not found.")
+            
+    def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
+            """Returns the parsed configuration of the resource."""
+            
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if not version:
+                    cursor.execute("SELECT active_version_id FROM resources WHERE name = ?", (name, ))
+                    resource_row = cursor.fetchone()
+                    
+                    if not resource_row:
+                        raise ResourceNameNotFoundError(f"Resource '{name}' not found.")
+                    
+                    active_id = resource_row['active_version_id']
+                    cursor.execute("SELECT content_json FROM manifests WHERE id = ?", (active_id, ))
+                    manifest_row = cursor.fetchone()
+                    
+                else:
+                    cursor.execute(
+                        "SELECT content_json FROM manifests WHERE resource_name = ? AND version = ?", 
+                        (name, version)
+                    )
+                    manifest_row = cursor.fetchone()
+                    
+                    if not manifest_row:
+                        raise ResourceVersionNotFoundError(f"Version {version} of '{name}' not found.")
+                
+            return manifest_adapter.validate_json(manifest_row['content_json'])

@@ -24,3 +24,8 @@ class VesperDatabase(ABC):
     def get_history(self, name: str) -> List[Tuple[int, str]]:
         """Returns history of a resource (agent or agent-fleet)"""
         pass
+    
+    @abstractmethod
+    def get_resource_config(self, name: str, version: int = None) -> VesperManifest:
+        """Returns YAML configuration of the resource."""
+        pass
