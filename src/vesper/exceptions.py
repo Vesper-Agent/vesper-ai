@@ -20,3 +20,19 @@ class ResourceNameNotFoundError(VesperError):
 
 class ResourceVersionNotFoundError(VesperError):
     """Raised when a resource version is not found."""
+    
+class ModelNotSupportedError(VesperError):
+    """Raised when an unknown model name is requested."""
+    pass
+
+class BudgetExceededError(VesperError):
+    """Raised when a run exceeds its allocated maxCostPerRun."""
+    pass
+
+class LLMProviderError(VesperError):
+    """Raised when an external LLM API call fails."""
+    pass
+
+class ToolNotFoundError(VesperError):
+    """Raised when a tool listed in manifest is not found."""
+    pass
