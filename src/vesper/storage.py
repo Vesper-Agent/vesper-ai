@@ -6,7 +6,7 @@ class VesperDatabase(ABC):
     """This is a blueprint of Vesper's internal Database."""
     
     @abstractmethod
-    def setup_tables(slef) -> None:
+    def setup_tables(self) -> None:
         """Creates agent table if not exists."""
         pass
     

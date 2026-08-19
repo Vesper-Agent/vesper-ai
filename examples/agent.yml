@@ -2,7 +2,7 @@ apiVersion: vesper/v1
 kind: Agent
 
 name: researcher
-model: gemini-3.1-flash
+model: gpt-4o
 entryPoint: src/agent.py       # Optional - used only in CLI to load the @vesper.agent decorator
 
 tools:
