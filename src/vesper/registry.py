@@ -6,31 +6,37 @@ from vesper.models import manifest_adapter, VesperManifest
 from vesper.exceptions import InvalidAgentSpecError
 from vesper.storage import VesperDatabase
 
+def validate_manifest(file_path: str) -> VesperManifest:
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Error: File not found at {file_path}")
+
+    with open(path, "r") as f:
+        raw_data = yaml.safe_load(f)
+
+    if isinstance(raw_data, dict) and raw_data.get("kind") == "AgentFleet":
+        raise InvalidAgentSpecError("AgentFleet is not supported in vesper/v1. Fleet orchestration is planned for a future release.")
+
+    try:
+        manifest = manifest_adapter.validate_python(raw_data)
+    except ValidationError as e:
+        error_msgs = []
+        for err in e.errors():
+            loc = ".".join([str(loc) for loc in err['loc']])
+            msg = err['msg']
+            error_msgs.append(f"  - {loc}: {msg}")
+
+        clean_error_str = "\n".join(error_msgs)
+        raise InvalidAgentSpecError(f"Error: YAML structure is invalid\n{clean_error_str}")
+
+    return manifest
+
 class AgentRegistry:
     def __init__(self, db: VesperDatabase):
         self.db = db
-        
+
     def validate_manifest(self, file_path: str) -> VesperManifest:
-        path = Path(file_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Error: File not found at {file_path}")
-            
-        with open(path, "r") as f:
-            raw_data = yaml.safe_load(f)
-            
-        try:
-            manifest = manifest_adapter.validate_python(raw_data)
-        except ValidationError as e:
-            error_msgs = []
-            for err in e.errors():
-                loc = ".".join([str(loc) for loc in err['loc']])
-                msg = err['msg']
-                error_msgs.append(f"  - {loc}: {msg}")
-            
-            clean_error_str = "\n".join(error_msgs)
-            raise InvalidAgentSpecError(f"Error: YAML structure is invalid\n{clean_error_str}")
-                    
-        return manifest
+        return validate_manifest(file_path)
 
     def apply_manifest(self, file_path: str) -> Tuple[VesperManifest, str, int]:
         """Validates the YAML and saves it to the database."""

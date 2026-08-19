@@ -2,8 +2,8 @@ apiVersion: vesper/v1
 kind: Agent
 
 name: researcher
-model: gpt-4o
-entryPoint: src/agent.py       # Optional - used only in CLI to load the @vesper.agent decorator
+model: gemini-1.5-pro
+entryPoint: src/agent.py       # Optional - used only in CLI to load the @vesper.tool decorator
 
 tools:
   - web_search
@@ -17,10 +17,3 @@ memory:
 budget:
   maxCostPerRun: 0.05
   alertAt: 0.04
-
-guardrails: story-policy
-
-eval:
-  dataset: eval/agent.json
-  passThreshold: 0.85
-  ciGate: true
