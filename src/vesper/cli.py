@@ -12,9 +12,14 @@ from rich.console import Console
 from rich.table import Table
 from rich.syntax import Syntax
 
-from vesper.registry import AgentRegistry
+from vesper.config import get_vesper_home, load_env
+from vesper.registry import AgentRegistry, get_registry as build_registry
+from vesper.runtime import Agent
+from vesper.memory import MemoryStore
+from vesper.audit import AuditStore
 from vesper.sqlite_storage import SQLiteVesperDatabase
-from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNotFoundError, ResourceVersionNotFoundError
+from vesper.models import BudgetConfig
+from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNotFoundError, ResourceVersionNotFoundError, BudgetExceededError
 
 app = typer.Typer(
     rich_markup_mode="rich",
@@ -30,44 +35,13 @@ app = typer.Typer(
 console = Console()
 
 
-def get_vesper_home() -> str:
-    """Returns the Vesper root directory, respecting the VESPER_HOME env var."""
-    return os.path.expanduser(os.environ.get("VESPER_HOME", "~/.vesper"))
-
-
-def ensure_initialized():
-    """Guardrail to prevent commands from running if Vesper isn't set up."""
-    config_path = os.path.join(get_vesper_home(), "config.json")
-    
-    if not os.path.exists(config_path):
-        print("[bold red]Error:[/bold red] Vesper is not initialized.")
-        print("Run [bold white]vesper init[/bold white] to set up the database and folders.")
-        raise typer.Exit(code=1)
-
-
 def get_registry() -> AgentRegistry:
     """Reads the config file and instantiates the correct database adapter."""
-    ensure_initialized()
-    
-    config_path = os.path.join(get_vesper_home(), "config.json")
-    with open(config_path, "r") as f:
-        config = json.load(f)
-        
-    backend = config.get("backend")
-    
-    if backend == "local":
-        db_path = config.get("db_path", os.path.join(get_vesper_home(), "registry.db"))
-        db = SQLiteVesperDatabase(db_path)
-    elif backend == "cloud":
-        # db_uri = config.get("db_uri")
-        # db = PostgresVesperDatabase(db_uri)
-        print("[bold red]Error:[/bold red] Cloud backend is not yet fully implemented.")
+    try:
+        return build_registry()
+    except VesperError as e:
+        print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
-    else:
-        print(f"[bold red]Error:[/bold red] Unknown backend type '{backend}' in config.json")
-        raise typer.Exit(code=1)
-        
-    return AgentRegistry(db)
 
 
 def type_print_rich(text: str, delay: float = 0.002):
@@ -106,6 +80,7 @@ def main(
     ),
 ):
     """Vesper CLI root execution."""
+    load_env()
     if ctx.invoked_subcommand is None:
         print(ctx.get_help())
 
@@ -374,10 +349,86 @@ def delete_resource(
     for target in names_to_delete:
         try:
             registry.delete_resource(target)
+            MemoryStore().delete(target)
+            AuditStore().delete(target)
             print(f"[green]✓ Successfully deleted '{target}' and its history.[/green]")
         except ResourceNameNotFoundError as e:
             print(f"[bold red]Error: {e}[/bold red]")
             raise typer.Exit(code=1)
-    
+
+
+@app.command(name="run")
+def run_agent(
+    name: str,
+    input: Annotated[Optional[str], typer.Option("--input", "-i", help="Input prompt for the agent.")] = None,
+    input_file: Annotated[Optional[str], typer.Option("--input-file", help="Read the input prompt from a file.")] = None,
+    session: Annotated[Optional[str], typer.Option("--session", "-s", help="Reuse a session id for stateful memory.")] = None,
+    max_cost: Annotated[Optional[float], typer.Option("--max-cost", help="Override the manifest's maxCostPerRun for this run.")] = None
+):
+    """Runs a deployed agent against an input."""
+    if input_file:
+        with open(input_file) as f:
+            prompt = f.read()
+    elif input:
+        prompt = input
+    else:
+        print("[bold red]Error:[/bold red] Provide --input or --input-file.")
+        raise typer.Exit(code=1)
+
+    try:
+        agent = Agent.load(name)
+
+        if max_cost is not None:
+            if agent.manifest.budget is None:
+                agent.manifest.budget = BudgetConfig(maxCostPerRun=max_cost)
+            else:
+                agent.manifest.budget.maxCostPerRun = max_cost
+
+        result = agent.run(prompt, session=session)
+
+    except BudgetExceededError as e:
+        print(f"[bold red]✗ {e}[/bold red]")
+        raise typer.Exit(code=1)
+    except (VesperError, FileNotFoundError) as e:
+        print(f"[bold red]Error: {e}[/bold red]")
+        raise typer.Exit(code=1)
+
+    console.print(result.content)
+
+    if result.alerted:
+        print("[yellow]⚠ alert: cost crossed the configured alert threshold[/yellow]")
+
+    cost_str = f"${result.cost:.6f}" if result.cost is not None else "untracked"
+    footer = f"cost {cost_str} · {result.prompt_tokens} in / {result.completion_tokens} out"
+    if result.session_id:
+        footer += f" · session {result.session_id}"
+    print(f"[dim]{footer}[/dim]")
+
+
+@app.command(name="runs")
+def show_runs(name: str):
+    """Displays the run history of an agent."""
+    records = AuditStore().list(name)
+
+    if not records:
+        print(f"[dim]No runs recorded for '{name}' yet.[/dim]")
+        return
+
+    table = Table(box=box.MINIMAL, header_style="bold white", pad_edge=False)
+    table.add_column("Run ID", style="dim")
+    table.add_column("Status")
+    table.add_column("Cost")
+    table.add_column("Tokens")
+    table.add_column("When", style="dim")
+
+    for record in records:
+        status = "[green]completed[/green]" if record.status == "completed" else "[red]failed[/red]"
+        cost = f"${record.cost:.6f}" if record.cost is not None else "-"
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(record.created_at))
+        table.add_row(record.run_id, status, cost, f"{record.prompt_tokens}/{record.completion_tokens}", when)
+
+    console.print(table)
+
+
 if __name__ == "__main__":
     app()

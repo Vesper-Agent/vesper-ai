@@ -1,9 +1,13 @@
+import os
+import json
 import yaml
 from pathlib import Path
 from pydantic import ValidationError
 from typing import Tuple, List
+from vesper.config import get_vesper_home
 from vesper.models import manifest_adapter, VesperManifest
-from vesper.exceptions import InvalidAgentSpecError
+from vesper.sqlite_storage import SQLiteVesperDatabase
+from vesper.exceptions import InvalidAgentSpecError, VesperError
 from vesper.storage import VesperDatabase
 
 def validate_manifest(file_path: str) -> VesperManifest:
@@ -62,3 +66,19 @@ class AgentRegistry:
     def delete_resource(self, name: str) -> None:
         """Deletes the resource from the database."""
         return self.db.delete_resource(name)
+
+def get_registry() -> AgentRegistry:
+    """Builds the registry from the local Vesper configuration."""
+    config_path = os.path.join(get_vesper_home(), "config.json")
+    if not os.path.exists(config_path):
+        raise VesperError("Vesper is not initialized. Run 'vesper init' to set up the database.")
+
+    with open(config_path) as f:
+        config = json.load(f)
+
+    backend = config.get("backend")
+    if backend == "local":
+        db_path = config.get("db_path", os.path.join(get_vesper_home(), "registry.db"))
+        return AgentRegistry(SQLiteVesperDatabase(db_path))
+
+    raise VesperError(f"Backend '{backend}' is not currently supported.")

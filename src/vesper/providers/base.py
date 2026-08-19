@@ -7,6 +7,7 @@ class ToolCall(BaseModel):
     id: str
     name: str
     arguments: dict
+    signature: Optional[bytes] = None
 
 class LLMResponse(BaseModel):
     """This is the standard llm response class."""

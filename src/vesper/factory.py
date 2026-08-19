@@ -25,7 +25,7 @@ def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> Op
 
 def get_provider(model_name: str) -> BaseProvider:
     """Instantiates and returns the correct provider based on model name."""
-    if model_name.startswith(("gpt-", "o1-", "o3-")):
+    if model_name.startswith(("gpt-", "o1-", "o3-", "o4-")):
         return OpenAIProvider(model_name)
     elif model_name.startswith("claude-"):
         return AnthropicProvider(model_name)

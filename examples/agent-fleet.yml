@@ -1,3 +1,5 @@
+# Preview only - AgentFleet is planned for vesper/v2 and is NOT supported by V1.
+# Running `vesper validate` / `apply` on this file will report that fleets are not yet available.
 apiVersion: vesper/v1
 kind: AgentFleet
 

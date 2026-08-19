@@ -2,17 +2,16 @@ apiVersion: vesper/v1
 kind: Agent
 
 name: researcher
-model: gemini-1.5-pro
-entryPoint: src/agent.py       # Optional - used only in CLI to load the @vesper.tool decorator
+model: gpt-4o-mini
+entryPoint: examples/agent.py       # Optional - loads the @vesper.tool functions from this file
 
 tools:
-  - web_search
-  - read_file
+  - web_search                      # built-in
+  - get_stock_price                 # custom, from entryPoint
 
 memory:
   scope: project
   retentionDays: 30
-  strategy: summarise_on_overflow
 
 budget:
   maxCostPerRun: 0.05

@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vesper"
-version = "1.0.0" 
+name = "vesper-ai"
+version = "1.0.0"
 description = "Infrastructure for managing AI agents."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Mohammed Tahir Siddique"}
+    {name = "Vesper-Agent"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -37,6 +37,11 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Vesper-Agent/vesper-ai"
+Repository = "https://github.com/Vesper-Agent/vesper-ai"
+Issues = "https://github.com/Vesper-Agent/vesper-ai/issues"
 
 [project.scripts]
 vesper = "vesper.cli:app"

@@ -17,10 +17,13 @@ class GoogleProvider(BaseProvider):
                     "parts": [{"function_response": {"name": message["name"], "response": {"result": message["content"]}}}]
                 })
             elif message["role"] == "assistant" and message.get("tool_calls"):
-                contents.append({
-                    "role": "model",
-                    "parts": [{"function_call": {"name": call["name"], "args": call["arguments"]}} for call in message["tool_calls"]]
-                })
+                parts = []
+                for call in message["tool_calls"]:
+                    part = {"function_call": {"name": call["name"], "args": call["arguments"]}}
+                    if call.get("signature") is not None:
+                        part["thought_signature"] = call["signature"]
+                    parts.append(part)
+                contents.append({"role": "model", "parts": parts})
             else:
                 role = "model" if message["role"] == "assistant" else message["role"]
                 contents.append({"role": role, "parts": [{"text": message.get("content", "")}]})
@@ -38,13 +41,20 @@ class GoogleProvider(BaseProvider):
             config=config
         )
 
+        parts = response.candidates[0].content.parts
+        content = "".join(part.text for part in parts if part.text)
         tool_calls = [
-            ToolCall(id=call.name, name=call.name, arguments=dict(call.args))
-            for call in (response.function_calls or [])
+            ToolCall(
+                id=part.function_call.name,
+                name=part.function_call.name,
+                arguments=dict(part.function_call.args or {}),
+                signature=getattr(part, "thought_signature", None)
+            )
+            for part in parts if part.function_call
         ]
 
         return LLMResponse(
-            content=response.text or "",
+            content=content,
             prompt_tokens=response.usage_metadata.prompt_token_count,
             completion_tokens=response.usage_metadata.candidates_token_count,
             tool_calls=tool_calls
