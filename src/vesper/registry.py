@@ -51,7 +51,7 @@ class AgentRegistry:
         return manifest, new_id, new_version
     
     def get_all_resources(self) -> List[Tuple[str, str, int]]:
-        """Returns all active resources (agents and fleets) from the database."""
+        """Returns all active agents from the database."""
         
         return self.db.get_resources()        
     
