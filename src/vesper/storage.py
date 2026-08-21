@@ -17,12 +17,12 @@ class VesperDatabase(ABC):
     
     @abstractmethod
     def get_resources(self) -> List[Tuple[str, str, int]]:
-        """Returns all active resources (agents and fleets) from the database."""
+        """Returns all active agents from the database."""
         pass
 
     @abstractmethod
     def get_history(self, name: str) -> List[Tuple[int, str]]:
-        """Returns history of a resource (agent or agent-fleet)"""
+        """Returns the version history of an agent."""
         pass
     
     @abstractmethod

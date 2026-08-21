@@ -24,10 +24,10 @@ from vesper.exceptions import VesperError, NoChangeDetectedError, ResourceNameNo
 app = typer.Typer(
     rich_markup_mode="rich",
     help="""
-    [bold white]Vesper[/bold white] is an infrastructure tool to manage AI agents in production. 
-    
-    Manage your AI agent fleets, stateful memory scopes, declarative YAML routing, FinOps tracking,
-    and runtime security guardrails.
+    [bold white]Vesper[/bold white] is an infrastructure tool to manage AI agents in production.
+
+    Declare agents in YAML, version them in a local registry, and run them with
+    stateful memory scopes, multi-provider routing, and FinOps cost tracking.
     """,
     epilog="Run [bold white]vesper init[/bold white] to set up your environment."
 )
@@ -61,7 +61,7 @@ def version_callback(value: bool):
     """Prints the version and exits immediately if the flag is passed."""
     if value:
         try:
-            version = importlib.metadata.version("vesper")
+            version = importlib.metadata.version("vesper-ai")
         except importlib.metadata.PackageNotFoundError:
             version = "0.1.0-dev"
             
@@ -128,7 +128,7 @@ def init_system(
         time.sleep(0.5) 
 
     try:
-        app_version = importlib.metadata.version("vesper")
+        app_version = importlib.metadata.version("vesper-ai")
     except importlib.metadata.PackageNotFoundError:
         app_version = "unknown-local"
         
@@ -139,7 +139,7 @@ def init_system(
 ╚██╗ ██╔╝██╔══╝  ╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
  ╚████╔╝ ███████╗███████║██║     ███████╗██║  ██║
   ╚═══╝  ╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝[/bold white]
-[dim]v{app_version} | Production Orchestration for AI Agent Fleets[/dim]
+[dim]v{app_version} | Production Runtime for AI Agents[/dim]
 """
     type_print_rich(banner)
     
@@ -174,9 +174,9 @@ def init_system(
 
 @app.command(name="validate")
 def validate(
-    file: str = typer.Option(..., "--file", "-f", help="Path to the agent or fleet YAML file")
+    file: str = typer.Option(..., "--file", "-f", help="Path to the agent YAML manifest")
 ):
-    """Validates an agent or fleet YAML specification."""
+    """Validates an agent YAML manifest."""
     try:
         registry = get_registry()
         print(f"[dim]Validating {file}...[/dim]")
@@ -192,9 +192,9 @@ def validate(
 
 @app.command(name="apply")
 def apply(
-    file: str = typer.Option(..., "--file", "-f", help="Path to the agent or fleet YAML file")
+    file: str = typer.Option(..., "--file", "-f", help="Path to the agent YAML manifest")
 ):
-    """Validates and applies the agent or fleet to the registry."""
+    """Validates and applies the agent to the registry."""
     try:
         registry = get_registry()
         print(f"[dim]Validating {file}...[/dim]")
@@ -213,7 +213,7 @@ def apply(
 @app.command(name="list")
 @app.command(name="ls", hidden=True)
 def list_resources():
-    """Lists all active resources (agents and fleets)."""
+    """Lists all active agents."""
     registry = get_registry()
     resources = registry.get_all_resources()
     
@@ -244,7 +244,7 @@ def list_resources():
  
 @app.command(name="history")        
 def show_history(name: str):
-    """Displays history of a resource (agent or agent-fleet)"""
+    """Displays the version history of an agent."""
     registry = get_registry()
     
     try:
